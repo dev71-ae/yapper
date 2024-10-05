@@ -1,0 +1,9 @@
+.direnv/
+
+# Nix
+result 
+
+# Zig
+.zig-cache/
+
+
