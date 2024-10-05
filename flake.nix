@@ -10,11 +10,13 @@
         ...
       }: {
         devShells.default = pkgs.mkShell {
-          packages = l.attrValues {
-            inherit (pkgs) zig zls;
-          };
+          packages =
+            l.attrValues {
+              inherit (pkgs) zig zls cargo;
+            }
+            ++ l.optional pkgs.stdenv.isDarwin [pkgs.iconv];
 
-          name = "scratch";
+          BORINGSSL_LIB_DIR = "${pkgs.boringssl}/lib";
         };
       };
       imports = [{perSystem = {lib, ...}: {_module.args.l = lib // builtins;};}];

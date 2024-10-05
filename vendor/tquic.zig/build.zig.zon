@@ -1,0 +1,11 @@
+.{
+    .name = "tquic",
+    .version = "1.2.0",
+    .paths = .{""},
+    .dependencies = .{
+        .tquic = .{
+            .url = "https://github.com/Tencent/tquic/archive/refs/tags/v1.2.0.tar.gz",
+            .hash = "1220087dc52536c2fbbc83e6b96d5ad949e0c15ac010f602bc41f5a7cfc7f4d013c9",
+        },
+    },
+}
