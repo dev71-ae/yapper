@@ -12,10 +12,19 @@
         devShells.default = pkgs.mkShell {
           packages =
             l.attrValues {
-              inherit (pkgs) zig zls cargo;
+              inherit (pkgs) zig zls cargo openssl pkg-config;
             }
             ++ l.optional pkgs.stdenv.isDarwin [pkgs.iconv];
 
+          shellHook = ''
+            # We unset some NIX environment variables that might interfere with the zig
+            # compiler.
+            # Issue: https://github.com/ziglang/zig/issues/18998
+            unset NIX_CFLAGS_COMPILE
+            unset NIX_LDFLAGS
+          '';
+
+          OPENSSL_LIB_DIR = "${pkgs.openssl}/include";
           BORINGSSL_LIB_DIR = "${pkgs.boringssl}/lib";
         };
       };

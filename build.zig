@@ -4,12 +4,27 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const tquic = b.dependency("tquic", .{}).artifact("tquic");
+    const xev = b.dependency("libxev", .{ .target = target, .optimize = optimize });
+
     const exe = b.addExecutable(.{
         .name = "scratch",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+
+    exe.root_module.addImport("xev", xev.module("xev"));
+
+    exe.linkLibrary(tquic);
+    exe.linkSystemLibrary("libssl");
+
+    const openssl_lib_dir =
+        std.process.getEnvVarOwned(b.allocator, "OPENSSL_LIB_DIR") catch |e|
+        std.debug.panic("Error getting OPENSSL_LIB_DIR environment variable: {}", .{e});
+
+    exe.addIncludePath(tquic.getEmittedIncludeTree());
+    exe.addIncludePath(.{ .cwd_relative = openssl_lib_dir });
 
     b.installArtifact(exe);
 
@@ -37,13 +52,6 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_exe_unit_tests.step);
 
     // :check
-    const exe_check = b.addExecutable(.{
-        .name = "scratch",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
     const check = b.step("check", "Check if scratch compiles");
-    check.dependOn(&exe_check.step);
+    check.dependOn(&exe.step);
 }
