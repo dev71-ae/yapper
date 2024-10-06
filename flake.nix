@@ -14,17 +14,17 @@
             l.attrValues {
               inherit (pkgs) zig zls cargo openssl pkg-config;
             }
-            ++ l.optional pkgs.stdenv.isDarwin [pkgs.iconv];
+            ++ l.optional pkgs.stdenv.isDarwin [pkgs.libiconv];
 
           shellHook = ''
             # We unset some NIX environment variables that might interfere with the zig
             # compiler.
             # Issue: https://github.com/ziglang/zig/issues/18998
             unset NIX_CFLAGS_COMPILE
-            unset NIX_LDFLAGS
+            #unset NIX_LDFLAGS
           '';
 
-          OPENSSL_LIB_DIR = "${pkgs.openssl}/include";
+          OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
           BORINGSSL_LIB_DIR = "${pkgs.boringssl}/lib";
         };
       };
@@ -32,7 +32,7 @@
     };
 
   inputs = {
-    flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 }

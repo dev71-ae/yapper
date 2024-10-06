@@ -4,8 +4,20 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const tquic = b.dependency("tquic", .{}).artifact("tquic");
-    const xev = b.dependency("libxev", .{ .target = target, .optimize = optimize });
+    const openssl_include_dir: []const u8 =
+        std.process.getEnvVarOwned(b.allocator, "OPENSSL_INCLUDE_DIR") catch |e|
+        std.debug.panic("Error getting `OPENSSL_INCLUDE_DIR environment` variable: {}", .{e});
+
+    const tquic = b.dependency("tquic", .{
+        .target = target,
+        .optimize = optimize,
+        .openssl_include_dir = openssl_include_dir,
+    });
+
+    const xev = b.dependency("libxev", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
         .name = "scratch",
@@ -15,16 +27,10 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("xev", xev.module("xev"));
+    exe.root_module.addImport("tquic", tquic.module("tquic"));
 
-    exe.linkLibrary(tquic);
-    exe.linkSystemLibrary("libssl");
-
-    const openssl_lib_dir =
-        std.process.getEnvVarOwned(b.allocator, "OPENSSL_LIB_DIR") catch |e|
-        std.debug.panic("Error getting OPENSSL_LIB_DIR environment variable: {}", .{e});
-
-    exe.addIncludePath(tquic.getEmittedIncludeTree());
-    exe.addIncludePath(.{ .cwd_relative = openssl_lib_dir });
+    exe.addIncludePath(.{ .cwd_relative = openssl_include_dir });
+    exe.addIncludePath(tquic.artifact("tquic").getEmittedIncludeTree());
 
     b.installArtifact(exe);
 
@@ -50,8 +56,4 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
-
-    // :check
-    const check = b.step("check", "Check if scratch compiles");
-    check.dependOn(&exe.step);
 }
