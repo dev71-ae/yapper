@@ -14,7 +14,7 @@ pub fn build(b: *Build) !void {
     const source = b.dependency("tquic", .{});
 
     const module = b.addModule("tquic", .{
-        .root_source_file = b.path("main.zig"),
+        .root_source_file = b.path("lib.zig"),
         .target = target,
         .optimize = optimize,
     });
