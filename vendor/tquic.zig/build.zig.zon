@@ -1,11 +1,11 @@
 .{
     .name = "tquic",
     .version = "1.2.0",
-    .paths = .{ "build.zig", "build.zig.zon" },
+    .paths = .{ "build.zig", "build.zig.zon", "lib.zig" },
     .dependencies = .{
         .tquic = .{
-            .url = "https://github.com/Tencent/tquic/archive/refs/tags/v1.2.0.tar.gz",
-            .hash = "1220087dc52536c2fbbc83e6b96d5ad949e0c15ac010f602bc41f5a7cfc7f4d013c9",
+            .url = "https://github.com/Tencent/tquic/archive/refs/tags/v1.3.1.tar.gz",
+            .hash = "12200782a09925a89e376124af0e7bac5ac834728fa61cf9bc7068b79526a3807ea1",
         },
     },
 }
