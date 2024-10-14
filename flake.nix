@@ -1,5 +1,5 @@
 {
-  description = "A playground for Dev71 experimentation";
+  description = "dev71/yapper: An implementation of the Yap protocol in Zig.";
 
   outputs = inputs @ {flake-parts, ...}:
     flake-parts.lib.mkFlake {inherit inputs;} {
@@ -12,19 +12,10 @@
         devShells.default = pkgs.mkShell {
           packages =
             l.attrValues {
-              inherit (pkgs) zig zls cargo openssl pkg-config;
+              inherit (pkgs) zig zls cargo cargo-zigbuild;
             }
             ++ l.optional pkgs.stdenv.isDarwin [pkgs.libiconv];
 
-          shellHook = ''
-            # We unset some NIX environment variables that might interfere with the zig
-            # compiler.
-            # Issue: https://github.com/ziglang/zig/issues/18998
-            unset NIX_CFLAGS_COMPILE
-            # unset NIX_LDFLAGS
-          '';
-
-          OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
           BORINGSSL_LIB_DIR = "${pkgs.boringssl}/lib";
         };
       };
