@@ -16,7 +16,7 @@ const Config = struct {
     pub const max_idle_timeout = 5000;
 };
 
-fn log_stdout(data: []const u8, _: void) void {
+fn log_stdout(data: []const u8, _: ?*const void) void {
     const log = std.log.scoped(.TQuic);
     log.info("{s}", .{data});
 }
@@ -43,7 +43,7 @@ pub fn main() !void {
     var server = try Server.init(addr, quic_config, quic_tls_config);
     defer server.deinit();
 
-    quic_config.setTlsSelector(@ptrCast(&server), .{
+    quic_config.setTlsSelector(Server, &server, .{
         .get_default = Server.get_default_tls_config,
         .select = Server.select_tls_config,
     });
@@ -96,8 +96,10 @@ const Server = struct {
             .on_stream_readable = null,
             .on_stream_writable = null,
             .on_stream_closed = null,
-            .on_new_token = server_on_new_token,
-        }, &self, &.{ .on_packets_send = server_on_packets_send }, &self);
+            .on_new_token = null,
+        }, &self, &.{
+            .on_packets_send = null,
+        }, &self);
 
         return self;
     }
@@ -120,7 +122,7 @@ const Server = struct {
             readCallBack,
         );
 
-        self.endpoint.process_connections();
+        _ = self.endpoint.processConnections();
     }
 
     fn readCallBack(
@@ -137,7 +139,7 @@ const Server = struct {
 
         std.debug.print("{any}", .{remote_addr});
 
-        const r = self.endpoint.recv(buf.slice, &.{
+        const r = self.endpoint.recv(buf.slice.ptr, buf.slice.len, &.{
             .src = &remote_addr.any,
             .src_len = remote_addr.getOsSockLen(),
             .dst = &self.addr.any,
@@ -165,14 +167,12 @@ const Server = struct {
         return .rearm;
     }
 
-    fn get_default_tls_config(ctx: *anyopaque) callconv(.C) *tquic.TlsConfig {
-        const self: *Self = @ptrCast(@alignCast(ctx));
-        return self.tls_config;
+    fn get_default_tls_config(ctx: *const Server) *tquic.TlsConfig {
+        return ctx.tls_config;
     }
 
-    fn select_tls_config(ctx: *anyopaque, _: [*:0]const u8, _: usize) callconv(.C) *tquic.TlsConfig {
-        const self: *Self = @ptrCast(@alignCast(ctx));
-        return self.tls_config;
+    fn select_tls_config(ctx: *const Server, _: []const u8) *tquic.TlsConfig {
+        return ctx.tls_config;
     }
 
     fn server_on_conn_created(_: *anyopaque, _: *tquic.Connection) callconv(.C) void {
@@ -189,44 +189,5 @@ const Server = struct {
 
     fn server_on_stream_created(_: *anyopaque, _: *tquic.Connection, stream_id: u64) callconv(.C) void {
         std.debug.print("stream created {}", .{stream_id});
-    }
-
-    // fn server_on_stream_readable(_: *anyopaque, conn: ?*tquic.Connection, stream_id: u64) callconv(.C) void {
-    //     var buf: [4096]u8 = undefined;
-    //     var fin = false;
-
-    //     const res = tquic.c.quic_stream_read(conn, stream_id, &buf, 4096, &fin);
-
-    //     std.debug.print("got request", .{});
-    //     std.debug.print("{}, {s}", .{ res, buf });
-
-    //     if (fin) {
-    //         const resp = "HTTP/0.9 200 OK\n";
-    //         _ = tquic.c.quic_stream_write(conn, stream_id, resp, resp.len, true);
-    //     }
-    // }
-
-    fn server_on_stream_writable(_: ?*anyopaque, conn: ?*tquic.c.quic_conn_t, stream_id: u64) callconv(.C) void {
-        _ = tquic.c.quic_stream_wantwrite(conn, stream_id, false);
-    }
-
-    fn server_on_stream_closed(_: *anyopaque, _: ?*tquic.c.quic_conn_t, stream_id: u64) callconv(.C) void {
-        std.debug.print("stream closed {}", .{stream_id});
-    }
-
-    fn server_on_new_token(_: *anyopaque, _: *tquic.Connection, token: [*:0]const u8, token_len: usize) callconv(.C) void {
-        std.debug.print("token conn {s}, {d}", .{ token, token_len });
-    }
-
-    fn server_on_packets_send(ctx: *anyopaque, pkts: *tquic.PacketOutSpec, count: usize) callconv(.C) ?*isize {
-        const server: *Server = @ptrCast(@alignCast(ctx));
-
-        _ = server;
-        _ = pkts;
-        _ = count;
-
-        std.debug.print("Hello my camel!!", .{});
-
-        return null;
     }
 };

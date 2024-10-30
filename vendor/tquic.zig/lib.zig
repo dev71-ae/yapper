@@ -38,40 +38,40 @@ pub const Config = opaque {
     pub inline fn setTlsSelector(
         self: *Self,
         comptime T: type,
-        context: T,
+        context: *const T,
         methods: struct {
             get_default: fn (ctx: *const T) *TlsConfig,
-            select: fn (ctx: *const T, server_name: [*:0]const u8, server_name_len: usize) *TlsConfig,
+            select: fn (ctx: *const T, server_name: []const u8) *TlsConfig,
         },
     ) void {
         const wrapper = struct {
-            fn getDefault(ctx: *anyopaque) callconv(.C) void {
-                @call(.always_inline, methods.get_default, .{cast(T, ctx)});
+            fn getDefault(ctx: *TlsConfig.SelectMethods.SelectorContext) callconv(.C) *TlsConfig {
+                return @call(.always_inline, methods.get_default, .{cast(T, ctx)});
             }
 
             fn select(
-                ctx: *anyopaque,
+                ctx: *TlsConfig.SelectMethods.SelectorContext,
                 server_name: [*:0]const u8,
                 server_name_len: usize,
-            ) callconv(.C) void {
-                @call(.always_inline, methods.select, .{ cast(T, ctx), server_name, server_name_len });
+            ) callconv(.C) *TlsConfig {
+                return @call(.always_inline, methods.select, .{ cast(T, ctx), server_name[0..server_name_len] });
             }
         };
 
         quic_config_set_tls_selector(
             self,
-            .{
+            &.{
                 .get_default = wrapper.getDefault,
                 .select = wrapper.select,
             },
-            context,
+            @ptrCast(&context),
         );
     }
 
     extern fn quic_config_set_tls_selector(
         self: *Self,
         methods: *const TlsConfig.SelectMethods,
-        context: *anyopaque,
+        context: *const anyopaque,
     ) void;
 };
 
@@ -79,11 +79,11 @@ pub const TlsConfig = opaque {
     const Self = TlsConfig;
 
     pub const SelectMethods = extern struct {
-        pub const TlsConfigSelectorContext = opaque {};
+        pub const SelectorContext = opaque {};
 
-        get_default: *const fn (*TlsConfigSelectorContext) callconv(.C) *Self,
+        get_default: *const fn (*SelectorContext) callconv(.C) *Self,
         select: *const fn (
-            *TlsConfigSelectorContext,
+            *SelectorContext,
             [*:0]const u8,
             usize,
         ) callconv(.C) *Self,
@@ -159,7 +159,7 @@ pub const Logger = struct {
         Debug,
         Trace,
 
-        pub fn to_slice(self: Level) []const u8 {
+        pub fn to_cstr(self: Level) [*:0]const u8 {
             return switch (self) {
                 .Off => "OFF",
                 .Error => "ERROR",
@@ -174,19 +174,24 @@ pub const Logger = struct {
     /// Set logger.
     pub inline fn setLogger(
         comptime T: type,
-        argp: T,
-        cb: fn (data: []const u8, data_len: usize, argp: T) void,
+        argp: ?T,
+        cb: fn (data: []const u8, argp: ?*T) void,
         level: Level,
     ) void {
-        quic_set_logger(struct {
-            fn wrapper(data: [*:0]const u8, data_len: usize, argp_: ?*anyopaque) callconv(.C) void {
-                @call(.always_inline, cb, .{ data, data_len, cast(T, argp_) });
-            }
-        }.wrapper, @ptrCast(argp), level.to_slice());
+        quic_set_logger(
+            struct {
+                fn wrapper(data: [*:0]const u8, data_len: usize, argp_: ?*anyopaque) callconv(.C) void {
+                    const ctx = if (argp) |_| cast(T, argp_) else null;
+                    @call(.always_inline, cb, .{ data[0..data_len], ctx });
+                }
+            }.wrapper,
+            if (argp) |p| @ptrCast(p) else null,
+            level.to_cstr(),
+        );
     }
 
     extern fn quic_set_logger(
-        cb: fn ([*:0]const u8, usize, ?*anyopaque) callconv(.C) void,
+        cb: *const fn ([*:0]const u8, usize, ?*anyopaque) callconv(.C) void,
         argp: ?*anyopaque,
         level: [*:0]const u8,
     ) void;
