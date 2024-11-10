@@ -3,7 +3,10 @@
     .version = "0.1.0",
     .paths = .{ "build.zig", "build.zig.zon", "src" },
     .dependencies = .{
-        .tquic = .{ .path = "./vendor/tquic.zig" },
+        .tquic = .{
+            .url = "https://github.com/dev71-ae/tquic.zig/archive/5d7bf17c21028e05a5e41190c871f83cc0e393cc.tar.gz",
+            .hash = "1220c1839402791517190feeb574298f5726ed14259608a3fa50d84e416f00c51c46",
+        },
         .libxev = .{
             .url = "https://github.com/mitchellh/libxev/archive/b8d1d93e5c899b27abbaa7df23b496c3e6a178c7.tar.gz",
             .hash = "1220612bc023c21d75234882ec9a8c6a1cbd9d642da3dfb899297f14bb5bd7b6cd78",
